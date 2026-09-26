@@ -1,4 +1,5 @@
 import { app, powerMonitor, screen } from "electron";
+import { join } from "node:path";
 
 import { openReleasePage, registerIpc } from "./ipc";
 import { Logger, installCrashHandlers } from "./log";
@@ -14,6 +15,9 @@ import { WindowManager } from "./window";
 
 /** Must match `build.appId` in package.json so toasts and the installer agree on identity. */
 const APP_USER_MODEL_ID = "io.github.claude-usage-widget";
+
+/** `%APPDATA%` subfolder for config, logs and the statusline snapshot. Never change it. */
+const USER_DATA_FOLDER = "claude-usage-widget";
 
 /**
  * Entry point.
@@ -160,6 +164,14 @@ async function runWidgetMode(): Promise<void> {
   // bytes and this is the only way to see a statusline update without waiting out the poll timer.
   const handoff = setInterval(() => poller.ingestStatusline(), STATUSLINE_POLL_MS);
   handoff.unref?.();
+}
+
+// Pin userData to the folder the widget has always used. Electron otherwise derives it from
+// `productName`, which would move it to "%APPDATA%/Claude Usage Widget" and orphan existing configs,
+// including the recorded statusline value that Unregister needs. Both run modes must agree on it, so
+// this runs before either starts. An explicit --user-data-dir (used for testing) still wins.
+if (!app.commandLine.hasSwitch("user-data-dir")) {
+  app.setPath("userData", join(app.getPath("appData"), USER_DATA_FOLDER));
 }
 
 if (isStatuslineInvocation(process.argv)) {

@@ -1,8 +1,31 @@
 {
   "name": "claude-usage-widget",
+  "productName": "Claude Usage Widget",
   "version": "1.0.0",
-  "private": true,
-  "description": "Frameless always-on-top Windows widget showing Claude 5h/7d subscription quota",
+  "description": "Unofficial always-on-top Windows widget showing your Claude subscription quota: the 5-hour and 7-day windows with live reset countdowns.",
+  "keywords": [
+    "claude",
+    "claude-code",
+    "anthropic",
+    "usage",
+    "quota",
+    "widget",
+    "electron",
+    "windows"
+  ],
+  "author": "aiman",
+  "license": "MIT",
+  "homepage": "https://github.com/OWNER/claude-usage-widget#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OWNER/claude-usage-widget.git"
+  },
+  "bugs": {
+    "url": "https://github.com/OWNER/claude-usage-widget/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
   "main": "dist/main/main.js",
   "scripts": {
     "clean": "node scripts/clean.mjs",
@@ -12,11 +35,55 @@
     "typecheck": "tsc -p tsconfig.json",
     "test": "tsc -p tsconfig.test.json && node --test \"dist-test/test/**/*.test.js\"",
     "start": "npm run build && electron .",
-    "dev": "npm run build && electron ."
+    "dev": "npm run build && electron .",
+    "icons": "node scripts/make-icons.mjs",
+    "dist": "npm run build && electron-builder --win --publish never",
+    "release": "npm run build && electron-builder --win --publish always"
+  },
+  "build": {
+    "appId": "io.github.claude-usage-widget",
+    "productName": "Claude Usage Widget",
+    "copyright": "Copyright (c) 2026 aiman",
+    "directories": {
+      "output": "release",
+      "buildResources": "assets"
+    },
+    "files": [
+      "dist/**/*",
+      "!dist/**/*.map",
+      "assets/**/*",
+      "package.json"
+    ],
+    "win": {
+      "icon": "assets/icon.png",
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": false,
+      "createStartMenuShortcut": true,
+      "runAfterFinish": true,
+      "artifactName": "claude-usage-widget-${version}-setup.${ext}"
+    },
+    "portable": {
+      "artifactName": "claude-usage-widget-${version}-portable.${ext}"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "OWNER",
+      "repo": "claude-usage-widget",
+      "releaseType": "draft"
+    }
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
     "electron": "^38.0.0",
+    "electron-builder": "^26.15.3",
     "typescript": "^5.9.0"
   }
 }
