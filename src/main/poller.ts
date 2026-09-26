@@ -182,6 +182,12 @@ export class Poller {
     return this.snapshot;
   }
 
+  /** Re-arm the timer so a changed refresh interval applies now, not after the old one elapses. */
+  reschedule(): void {
+    if (this.inFlight !== null) return; // the in-flight poll reschedules when it settles
+    this.schedule();
+  }
+
   /**
    * Called when the capture mode writes a new file, or when a statusline-driven refresh is
    * requested. Never touches the network and never displaces good OAuth data.

@@ -96,7 +96,19 @@
       </section>
 
       <section class="card">
-        <div class="card-head"><span>Refresh</span><span class="faint tiny mono" id="interval"></span></div>
+        <div class="card-head">
+          <span>Refresh</span>
+          <label class="interval">
+            <span class="faint">every</span>
+            <select id="interval">
+              <option value="5">5 min</option>
+              <option value="10">10 min</option>
+              <option value="15">15 min</option>
+              <option value="30">30 min</option>
+              <option value="60">1 hour</option>
+            </select>
+          </label>
+        </div>
         <div class="actions">
           <button id="refresh">Refresh now</button>
           <button id="recheck">Re-check sign-in</button>

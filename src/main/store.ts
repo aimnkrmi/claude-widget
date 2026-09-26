@@ -8,6 +8,9 @@ export const CONFIG_VERSION = 1;
 /** Hard floor on the poll interval. Never tight-loop against the usage endpoint. */
 export const MIN_REFRESH_MINUTES = 5;
 
+/** Intervals offered in the tray and panel. Any other value >= the floor still works via settings.json. */
+export const REFRESH_INTERVAL_CHOICES = [5, 10, 15, 30, 60] as const;
+
 export interface Config {
   version: number;
   window: { x: number | null; y: number | null };

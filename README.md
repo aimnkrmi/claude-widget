@@ -175,7 +175,8 @@ the weekly window, and the first `weekly_scoped` entry is shown in the panel as 
 
 ### Polling and failure behaviour
 
-The configured interval (default and minimum 5 minutes) is pulled forward only to land just after an
+The configured interval (default and minimum 5 minutes; change it from the panel's Refresh card or
+the tray's **Refresh every** menu) is pulled forward only to land just after an
 upcoming window reset - at most one extra request per reset. The widget also refreshes after the PC
 wakes or is unlocked. The plan badge is fetched at most hourly. Data is displayed by walking a
 precedence ladder:
@@ -335,7 +336,7 @@ documented fallback.
 ## FAQ
 
 **Does this use my quota?** It never sends prompts or talks to a model; it only reads your usage
-numbers, with one small request every 5 minutes plus one just after each window reset.
+numbers, with one small request every 5 minutes (configurable) plus one just after each window reset.
 
 **Which plans does it support?** Claude subscriptions you sign in to through Claude Code. It was
 developed on Pro; Max accounts report the same windows. Plain API keys have no subscription windows,

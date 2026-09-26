@@ -139,6 +139,30 @@ button.danger:hover:not(:disabled) {
   margin: 0;
 }
 
+.interval {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 400;
+}
+
+.interval select {
+  padding: 3px 6px;
+  border: 1px solid var(--bg-border);
+  border-radius: 6px;
+  background: #232833;
+  color: var(--fg);
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.interval select:hover,
+.interval select:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+
 .small {
   font-size: 11px;
   line-height: 1.45;

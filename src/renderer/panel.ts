@@ -61,7 +61,7 @@
     statuslineToggle: el<HTMLButtonElement>("statusline-toggle"),
     refresh: el<HTMLButtonElement>("refresh"),
     recheck: el<HTMLButtonElement>("recheck"),
-    interval: el("interval"),
+    interval: el<HTMLSelectElement>("interval"),
     clickThrough: el<HTMLInputElement>("click-through"),
     autoLaunch: el<HTMLInputElement>("auto-launch"),
     showWidget: el<HTMLInputElement>("show-widget"),
@@ -130,9 +130,20 @@
     nodes.showWidget.checked = state.settings.widgetVisible;
     nodes.notifications.checked = state.settings.notifications;
     nodes.checkUpdates.checked = state.settings.checkForUpdates;
-    nodes.interval.textContent = `every ${state.settings.refreshIntervalMinutes}m`;
+    paintInterval(state.settings.refreshIntervalMinutes);
     nodes.footer.textContent = `v${state.appVersion} - unofficial. Reads and, only when the token rotates, rewrites your Claude Code login.`;
     if (!document.hidden) void renderStatusline(state);
+  }
+
+  /** Select the current interval, adding it as an option if it was set by hand in settings.json. */
+  function paintInterval(minutes: number): void {
+    const value = String(minutes);
+    if (!Array.from(nodes.interval.options).some((option) => option.value === value)) {
+      const option = new Option(`${minutes} min`, value);
+      const after = Array.from(nodes.interval.options).find((existing) => Number(existing.value) > minutes);
+      nodes.interval.add(option, after ?? null);
+    }
+    nodes.interval.value = value;
   }
 
   /**
@@ -257,6 +268,9 @@
   });
   nodes.checkUpdates.addEventListener("change", (event) => {
     void window.widgetApi.setCheckForUpdates((event.target as HTMLInputElement).checked);
+  });
+  nodes.interval.addEventListener("change", () => {
+    void window.widgetApi.setRefreshInterval(Number(nodes.interval.value));
   });
   nodes.updateOpen.addEventListener("click", () => window.widgetApi.openUpdatePage());
   nodes.openSettings.addEventListener("click", () => window.widgetApi.openSettingsFolder());

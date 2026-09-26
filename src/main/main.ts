@@ -118,6 +118,12 @@ async function runWidgetMode(): Promise<void> {
 
   const tray = new TrayIcon(store, windows, {
     refreshNow: () => void poller.refreshNow(),
+    setRefreshInterval: (minutes) => {
+      store.update({ refreshIntervalMinutes: minutes });
+      poller.reschedule();
+      tray.sync();
+      broadcast();
+    },
     quit: () => shutdown(),
     getUpdate: () => updates.get(),
     openUpdate: () => openReleasePage(updates),

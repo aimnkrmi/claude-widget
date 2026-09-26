@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] - 2026-09-26
+
+### Added
+
+- Refresh interval picker (5, 10, 15, 30 minutes or 1 hour) in the panel and the tray menu. A
+  change takes effect immediately instead of after the current wait.
+
 ## [1.0.0] - 2026-09-26
 
 First public release.

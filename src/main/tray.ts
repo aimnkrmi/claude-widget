@@ -3,7 +3,7 @@ import { Menu, Tray as ElectronTray, nativeImage } from "electron";
 import { applyLoginItem, assetPath } from "./paths";
 import type { UpdateInfo, UsageSnapshot } from "../shared/types";
 import { trafficLevel } from "./normalize";
-import type { Store } from "./store";
+import { REFRESH_INTERVAL_CHOICES, type Store } from "./store";
 import type { WindowManager } from "./window";
 
 /**
@@ -22,10 +22,18 @@ type IconVariant = keyof typeof ICON_VARIANTS;
 
 export interface TrayActions {
   refreshNow: () => void;
+  setRefreshInterval: (minutes: number) => void;
   quit: () => void;
   /** A newer release, if the update check found one. */
   getUpdate: () => UpdateInfo | null;
   openUpdate: () => void;
+}
+
+/** The preset intervals, plus the current one if it was set by hand in settings.json. */
+function intervalChoices(current: number): number[] {
+  const choices: number[] = [...REFRESH_INTERVAL_CHOICES];
+  if (!choices.includes(current)) choices.push(current);
+  return choices.sort((a, b) => a - b);
 }
 
 export class TrayIcon {
@@ -124,6 +132,15 @@ export class TrayIcon {
         },
         { type: "separator" },
         { label: "Refresh now", click: () => this.actions.refreshNow() },
+        {
+          label: "Refresh every",
+          submenu: intervalChoices(config.refreshIntervalMinutes).map((minutes) => ({
+            label: minutes >= 60 && minutes % 60 === 0 ? `${minutes / 60} hour${minutes === 60 ? "" : "s"}` : `${minutes} minutes`,
+            type: "radio" as const,
+            checked: minutes === config.refreshIntervalMinutes,
+            click: () => this.actions.setRefreshInterval(minutes),
+          })),
+        },
         { type: "separator" },
         {
           label: "Launch at login",

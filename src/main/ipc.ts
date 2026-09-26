@@ -182,6 +182,8 @@ export function registerIpc(deps: IpcDeps): () => void {
   ipcMain.handle(CHANNELS.setRefreshInterval, (_event, minutes: number) => {
     if (typeof minutes === "number" && Number.isFinite(minutes)) {
       store.update({ refreshIntervalMinutes: Math.floor(minutes) });
+      poller.reschedule();
+      tray.sync();
     }
     publish();
     return buildState(deps);
