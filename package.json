@@ -37,8 +37,7 @@
     "start": "npm run build && electron .",
     "dev": "npm run build && electron .",
     "icons": "node scripts/make-icons.mjs",
-    "dist": "npm run build && electron-builder --win --publish never",
-    "release": "npm run build && electron-builder --win --publish always"
+    "dist": "npm run build && electron-builder --win --publish never"
   },
   "build": {
     "appId": "io.github.claude-usage-widget",

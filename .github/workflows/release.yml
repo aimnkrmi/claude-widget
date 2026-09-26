@@ -29,6 +29,13 @@ jobs:
           fi
       - run: npm run typecheck
       - run: npm test
-      - run: npm run release
+      # Build only: electron-builder publishes each target in parallel, and on a fresh tag that races
+      # into two separate draft releases. One `gh release create` uploads both exes to one draft.
+      - run: npm run dist
+      - name: Create draft release
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" release/*-setup.exe release/*-portable.exe \
+            --draft --title "Claude Usage Widget ${GITHUB_REF_NAME#v}" --generate-notes
