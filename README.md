@@ -1,6 +1,6 @@
 # Claude Usage Widget
 
-[![CI](https://github.com/OWNER/claude-usage-widget/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/claude-usage-widget/actions/workflows/ci.yml)
+[![CI](https://github.com/aimnkrmi/claude-widget/actions/workflows/ci.yml/badge.svg)](https://github.com/aimnkrmi/claude-widget/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 A small always-on-top Windows widget that shows your Claude subscription quota at a glance: the
@@ -8,14 +8,24 @@ A small always-on-top Windows widget that shows your Claude subscription quota a
 
 No more opening `claude.ai/settings/usage` to find out whether you have room for one more prompt.
 
-<!-- Replace with a real capture of the bar and panel: docs/screenshot.png -->
-```
-┌────────────────────────────────────────────┐
-│  ((•‿•))  5h  ████░░░░░░░░  23%   3h45m    │
-│   ᴗᴥᴥᴥ    7d  ████████░░░░  51%   13h19m   │
-│            PRO   just now                  │
-└────────────────────────────────────────────┘
-```
+<p align="center">
+  <img src="docs/bar.png" alt="The widget bar: 5-hour window at 42% resetting in 3h11m, 7-day window at 71% resetting in 2d4h" width="402"><br>
+  <sub>The always-on-top bar</sub>
+</p>
+
+<p align="center">
+  <img src="docs/panel.png" alt="The detail panel with exact reset times, plan, data source and statusline settings" width="360"><br>
+  <sub>Click the bar for the detail panel</sub>
+</p>
+
+## Quick start
+
+1. Install [Claude Code](https://docs.anthropic.com/en/docs/claude-code), run `claude` once and sign
+   in with your Claude subscription.
+2. Download the installer or portable exe from the
+   [latest release](https://github.com/aimnkrmi/claude-widget/releases/latest) and run it.
+3. The bar appears in the top-left corner. Drag it where you like, click it for details, and
+   right-click the tray icon for options.
 
 > **Unofficial.** This project is not affiliated with, endorsed by, or supported by Anthropic.
 > "Claude" is a trademark of Anthropic. The widget reads the usage endpoint Claude Code itself uses,
@@ -37,7 +47,7 @@ No more opening `claude.ai/settings/usage` to find out whether you have room for
 Requires Windows 10/11 and an active Claude subscription you have signed in to with
 [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (run `claude` once and log in).
 
-Download from the [latest release](https://github.com/OWNER/claude-usage-widget/releases/latest):
+Download from the [latest release](https://github.com/aimnkrmi/claude-widget/releases/latest):
 
 | File | Use it when |
 |---|---|
@@ -280,7 +290,7 @@ A token from `claude setup-token` will not work; sign in with Claude Code itself
 file was used, and which token host last worked.
 
 **Something else.** Panel > **Open log folder** and look at `main.log` (tokens are masked). Attach
-the relevant lines when you [open an issue](https://github.com/OWNER/claude-usage-widget/issues).
+the relevant lines when you [open an issue](https://github.com/aimnkrmi/claude-widget/issues).
 When running from source, `CLUW_DEBUG=1` also forwards renderer console output to stdout:
 
 ```bash
@@ -322,6 +332,35 @@ extra-usage credit balance, multi-account switching, macOS/Linux.
 in `oauth.ts` and `normalize.ts` so that a break is a contained fix, and the statusline source is the
 documented fallback.
 
+## FAQ
+
+**Does this use my quota?** It never sends prompts or talks to a model; it only reads your usage
+numbers, with one small request every 5 minutes plus one just after each window reset.
+
+**Which plans does it support?** Claude subscriptions you sign in to through Claude Code. It was
+developed on Pro; Max accounts report the same windows. Plain API keys have no subscription windows,
+so there is nothing to show.
+
+**Why does it need Claude Code?** It reuses the login Claude Code already stored, instead of asking
+for your password or a token. Nothing is sent anywhere except Anthropic.
+
+**Can I use it on macOS or Linux?** Not yet. The code is mostly portable, but tray, window and
+credential behaviour are only tested on Windows. Pull requests welcome.
+
+**How do I uninstall it?** Use *Settings > Apps* (installer) or delete the exe (portable). If you
+registered the statusline, press **Unregister** in the panel first so your previous statusline is
+restored. Settings and logs live in `%APPDATA%\claude-usage-widget`.
+
+## Contributing
+
+Issues and pull requests are welcome. Please:
+
+- run `npm run typecheck` and `npm test` before opening a PR;
+- keep the zero-runtime-dependency rule unless there is a strong reason;
+- be extra careful with `credentials.ts`, `oauth.ts` and `statusline.ts` - they write files the user
+  depends on, and every change there needs tests;
+- never paste real tokens in issues, logs or tests.
+
 ## License
 
-[MIT](LICENSE). Security issues: see [SECURITY.md](SECURITY.md).
+[MIT](LICENSE) © aimnkrmi. Security issues: see [SECURITY.md](SECURITY.md).

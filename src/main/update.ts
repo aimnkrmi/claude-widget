@@ -10,7 +10,7 @@ import type { Store } from "./store";
  */
 
 /** `owner/repo` on GitHub. Also referenced by `repository` and `build.publish` in package.json. */
-export const GITHUB_REPO = "OWNER/claude-usage-widget";
+export const GITHUB_REPO = "aimnkrmi/claude-widget";
 
 const FIRST_CHECK_DELAY_MS = 30_000;
 const CHECK_INTERVAL_MS = 24 * 60 * 60_000;

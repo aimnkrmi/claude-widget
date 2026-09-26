@@ -13,15 +13,15 @@
     "electron",
     "windows"
   ],
-  "author": "aiman",
+  "author": "aimnkrmi",
   "license": "MIT",
-  "homepage": "https://github.com/OWNER/claude-usage-widget#readme",
+  "homepage": "https://github.com/aimnkrmi/claude-widget#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/OWNER/claude-usage-widget.git"
+    "url": "git+https://github.com/aimnkrmi/claude-widget.git"
   },
   "bugs": {
-    "url": "https://github.com/OWNER/claude-usage-widget/issues"
+    "url": "https://github.com/aimnkrmi/claude-widget/issues"
   },
   "engines": {
     "node": ">=20"
@@ -43,7 +43,7 @@
   "build": {
     "appId": "io.github.claude-usage-widget",
     "productName": "Claude Usage Widget",
-    "copyright": "Copyright (c) 2026 aiman",
+    "copyright": "Copyright (c) 2026 aimnkrmi",
     "directories": {
       "output": "release",
       "buildResources": "assets"
@@ -75,8 +75,8 @@
     },
     "publish": {
       "provider": "github",
-      "owner": "OWNER",
-      "repo": "claude-usage-widget",
+      "owner": "aimnkrmi",
+      "repo": "claude-widget",
       "releaseType": "draft"
     }
   },
