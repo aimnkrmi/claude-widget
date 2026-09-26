@@ -12,10 +12,7 @@
  */
 
 (() => {
-  const AMBER = 60;
-  const RED = 85;
-  /** Above this the critter panics: the limit is in sight, not yet reached. */
-  const CRITICAL = 95;
+  const fmt = window.cuwFormat;
 
   interface RowRefs {
     row: HTMLElement;
@@ -58,38 +55,6 @@
 
   let latest: WidgetState | null = null;
 
-  function level(percent: number | null, rateLimited: boolean): "ok" | "warn" | "alert" | "unknown" {
-    if (percent === null) return "unknown";
-    if (rateLimited) return "alert";
-    if (percent > RED) return "alert";
-    if (percent >= AMBER) return "warn";
-    return "ok";
-  }
-
-  function formatCountdown(resetsAt: number | null, now: number): string {
-    if (resetsAt === null || resetsAt <= 0) return "--";
-    const remaining = resetsAt - now;
-    if (remaining <= 0) return "reset";
-    const minutes = Math.floor(remaining / 60000);
-    if (minutes < 1) return "<1m";
-    const days = Math.floor(minutes / 1440);
-    const hours = Math.floor((minutes % 1440) / 60);
-    const rest = minutes % 60;
-    if (days > 0) return `${days}d${hours}h`;
-    if (hours > 0) return rest > 0 ? `${hours}h${rest}m` : `${hours}h`;
-    return `${minutes}m`;
-  }
-
-  function formatAge(timestamp: number | null, now: number): string {
-    if (timestamp === null || timestamp <= 0) return "no data";
-    const minutes = Math.floor(Math.max(0, now - timestamp) / 60000);
-    if (minutes < 1) return "just now";
-    if (minutes < 60) return `${minutes}m ago`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h ago`;
-    return `${Math.floor(hours / 24)}d ago`;
-  }
-
   /**
    * Pick the critter's mood from the same percentages the bars show.
    *
@@ -98,48 +63,55 @@
    * is the "almost out" band: high enough that the next request may well be refused, low enough
    * that the account is not actually throttled yet.
    */
-  function moodFor(state: WidgetState): CritterMood {
+  function moodFor(state: WidgetState, now: number): CritterMood {
     if (state.snapshot.source === "unknown") return "sleep";
     if (state.snapshot.rateLimited) return "spent";
 
-    const percents = [state.snapshot.session?.percentUsed, state.snapshot.weekly?.percentUsed].filter(
-      (p): p is number => typeof p === "number",
-    );
+    const percents = [
+      fmt.effectivePercent(state.snapshot.session, now),
+      fmt.effectivePercent(state.snapshot.weekly, now),
+    ].filter((p): p is number => p !== null);
     if (percents.length === 0) return "sleep";
 
     const worst = Math.max(...percents);
-    if (worst >= CRITICAL) return "critical";
-    if (worst > RED) return "alert";
-    if (worst >= AMBER) return "warn";
+    if (worst >= fmt.CRITICAL) return "critical";
+    if (worst > fmt.RED) return "alert";
+    if (worst >= fmt.AMBER) return "warn";
     return "ok";
+  }
+
+  /** Bars, percentages, countdowns and mood. Re-run every tick so a reset shows up on time. */
+  function paintWindows(state: WidgetState, now: number): void {
+    const snapshot = state.snapshot;
+    for (const kind of ["session", "weekly"] as const) {
+      const refs = rows[kind];
+      const win = snapshot[kind];
+      const percent = fmt.effectivePercent(win, now);
+      refs.row.className = `row level-${fmt.level(percent, snapshot.rateLimited)}`;
+
+      if (percent === null) {
+        refs.fill.style.width = "0%";
+        refs.fill.classList.add("indeterminate");
+        refs.pct.textContent = "--";
+      } else {
+        refs.fill.classList.remove("indeterminate");
+        refs.fill.style.width = `${percent}%`;
+        refs.pct.textContent = `${Math.round(percent)}%`;
+      }
+      refs.reset.textContent = fmt.countdown(win?.resetsAt ?? null, now);
+    }
+    ageLabel.textContent = snapshot.source === "unknown" ? "no data" : fmt.age(snapshot.updatedAt, now);
+    critter?.setMood(moodFor(state, now));
   }
 
   function render(state: WidgetState): void {
     latest = state;
     const now = Date.now();
     const snapshot = state.snapshot;
-
-    for (const kind of ["session", "weekly"] as const) {
-      const refs = rows[kind];
-      const win = snapshot[kind];
-      refs.row.className = `row level-${level(win?.percentUsed ?? null, snapshot.rateLimited)}`;
-
-      if (win === null || win.percentUsed === null) {
-        refs.fill.style.width = "0%";
-        refs.fill.classList.add("indeterminate");
-        refs.pct.textContent = "--";
-      } else {
-        refs.fill.classList.remove("indeterminate");
-        refs.fill.style.width = `${Math.min(100, Math.max(0, win.percentUsed))}%`;
-        refs.pct.textContent = `${Math.round(win.percentUsed)}%`;
-      }
-      refs.reset.textContent = formatCountdown(win?.resetsAt ?? null, now);
-    }
+    paintWindows(state, now);
 
     planBadge.textContent = state.planLabel;
-    ageLabel.textContent = snapshot.source === "unknown" ? "no data" : formatAge(snapshot.updatedAt, now);
     ageLabel.title = snapshot.lastError ?? "";
-    critter?.setMood(moodFor(state));
 
     throttleBadge.hidden = !snapshot.throttled;
     sourceBadge.hidden = snapshot.source === "oauth" || snapshot.source === "unknown";
@@ -152,14 +124,10 @@
         : `5h ${rows.session.pct.textContent} - 7d ${rows.weekly.pct.textContent}\n${snapshot.lastError ?? "Click for details"}`;
   }
 
-  /** Local tick: only the countdown and the age label move, so this is cheap. */
+  /** Local tick: no IPC, just time-dependent text and the rolled-over state. */
   function tick(): void {
-    if (latest === null) return;
-    const now = Date.now();
-    for (const kind of ["session", "weekly"] as const) {
-      rows[kind].reset.textContent = formatCountdown(latest.snapshot[kind]?.resetsAt ?? null, now);
-    }
-    ageLabel.textContent = latest.snapshot.source === "unknown" ? "no data" : formatAge(latest.snapshot.updatedAt, now);
+    if (latest === null || document.hidden) return;
+    paintWindows(latest, Date.now());
   }
 
   /* ---------------------------------- interaction -------------------------------------------- */
@@ -220,7 +188,7 @@
   });
 
   document.addEventListener("keydown", (event: KeyboardEvent) => {
-    if (event.key === "Escape") void window.widgetApi.togglePanel();
+    if (event.key === "Escape") void window.widgetApi.hidePanel();
   });
 
   void window.widgetApi.getState().then(render);

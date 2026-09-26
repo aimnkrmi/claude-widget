@@ -28,6 +28,10 @@ const CHANNELS = {
   getStatusline: "widget:get-statusline",
   registerStatusline: "widget:register-statusline",
   unregisterStatusline: "widget:unregister-statusline",
+  setNotifications: "widget:set-notifications",
+  setCheckForUpdates: "widget:set-check-for-updates",
+  openUpdatePage: "widget:open-update-page",
+  openLogFolder: "widget:open-log-folder",
   openSettingsFolder: "widget:open-settings-folder",
   quit: "widget:quit",
 } as const;
@@ -65,6 +69,11 @@ contextBridge.exposeInMainWorld("widgetApi", {
   getStatusline: () => ipcRenderer.invoke(CHANNELS.getStatusline),
   registerStatusline: () => ipcRenderer.invoke(CHANNELS.registerStatusline),
   unregisterStatusline: () => ipcRenderer.invoke(CHANNELS.unregisterStatusline),
+
+  setNotifications: (enabled: boolean) => ipcRenderer.invoke(CHANNELS.setNotifications, enabled),
+  setCheckForUpdates: (enabled: boolean) => ipcRenderer.invoke(CHANNELS.setCheckForUpdates, enabled),
+  openUpdatePage: () => ipcRenderer.invoke(CHANNELS.openUpdatePage),
+  openLogFolder: () => ipcRenderer.invoke(CHANNELS.openLogFolder),
 
   openSettingsFolder: () => ipcRenderer.invoke(CHANNELS.openSettingsFolder),
   quit: () => ipcRenderer.invoke(CHANNELS.quit),

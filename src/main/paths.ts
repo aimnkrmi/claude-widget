@@ -52,6 +52,21 @@ export function configPath(userData: string): string {
   return join(userData, "config.json");
 }
 
+/**
+ * Arguments needed to relaunch this app from `process.execPath`.
+ *
+ * A packaged build's exe *is* the app. Unpackaged (`electron .`) the exe is the generic Electron
+ * binary, which would open Electron's default window unless it is also given the app directory.
+ */
+export function selfLaunchArgs(): string[] {
+  return app.isPackaged ? [] : [app.getAppPath()];
+}
+
+/** Register or remove the Windows login item, pointing at this app in both run modes. */
+export function applyLoginItem(enabled: boolean): void {
+  app.setLoginItemSettings({ openAtLogin: enabled, path: process.execPath, args: selfLaunchArgs() });
+}
+
 /** Path to a file shipped inside `dist/`, e.g. `dist/renderer/bar.html`. */
 export function assetPath(...parts: string[]): string {
   return join(__dirname, ...parts);

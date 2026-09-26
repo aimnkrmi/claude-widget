@@ -32,6 +32,8 @@ export interface UsageWindow {
 export interface UsageSnapshot {
   session: UsageWindow | null;
   weekly: UsageWindow | null;
+  /** A per-model weekly sub-limit (`weekly_scoped`), when the account reports one. Panel only. */
+  weeklyScoped: UsageWindow | null;
   /** The account is currently throttled (`status: rate_limited` / `severity: rate_limited`). */
   rateLimited: boolean;
   source: UsageSource;
@@ -82,10 +84,23 @@ export interface PublicSettings {
   statuslineExistingCommand: string | null;
   /** The widget knows a prior `statusLine` value and can restore it exactly. */
   statuslineRestorable: boolean;
+  /** Desktop notifications at 85% / 95% and when a nearly-spent session window resets. */
+  notifications: boolean;
+  /** Check GitHub Releases once a day for a newer version. */
+  checkForUpdates: boolean;
+}
+
+/** A newer release than the running version, as found on GitHub. */
+export interface UpdateInfo {
+  version: string;
+  /** Always an `https://github.com/` release page. */
+  url: string;
 }
 
 export interface WidgetState {
   snapshot: UsageSnapshot;
+  /** Set when a newer release exists and update checks are on. */
+  update: UpdateInfo | null;
   plan: PlanInfo;
   /** Short display label for the plan badge, resolved in main so both renderers agree. */
   planLabel: string;

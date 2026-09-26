@@ -20,6 +20,9 @@ const PANEL_HEIGHT = 470;
 /** How long a drag stays armed without a move before it is force-released. */
 const DRAG_WATCHDOG_MS = 2_000;
 
+/** Automatic reloads per window after a renderer crash before leaving it for the user. */
+const MAX_RENDERER_RELOADS = 3;
+
 function clampToWorkArea(x: number, y: number, width: number, height: number): { x: number; y: number } {
   const display = screen.getDisplayMatching({ x, y, width, height });
   const area = display.workArea;
@@ -106,8 +109,21 @@ export class WindowManager {
   private dragging = false;
   private dragOffset: { x: number; y: number } | null = null;
   private dragWatchdog: NodeJS.Timeout | null = null;
+  private rendererGone: ((label: string, reason: string) => void) | null = null;
 
   constructor(private readonly store: Store) {}
+
+  private watchRenderer(win: BrowserWindow, label: string): void {
+    let reloads = 0;
+    win.webContents.on("render-process-gone", (_event, details) => {
+      this.rendererGone?.(label, `${details.reason} (exit ${details.exitCode})`);
+      // Reload so the widget recovers on its own instead of leaving a blank window, but give up
+      // after a few attempts rather than spinning on a renderer that crashes at load.
+      if (win.isDestroyed() || details.reason === "clean-exit" || reloads >= MAX_RENDERER_RELOADS) return;
+      reloads += 1;
+      win.webContents.reload();
+    });
+  }
 
   createBar(): BrowserWindow {
     if (this.bar !== null && !this.bar.isDestroyed()) return this.bar;
@@ -135,6 +151,7 @@ export class WindowManager {
 
     win.loadFile(assetPath("..", "renderer", "bar.html"));
     forwardRendererConsole(win, "bar");
+    this.watchRenderer(win, "bar");
 
     win.on("moved", () => {
       if (win.isDestroyed()) return;
@@ -189,6 +206,7 @@ export class WindowManager {
     lockSize(win, PANEL_WIDTH, PANEL_HEIGHT);
     win.loadFile(assetPath("..", "renderer", "panel.html"));
     forwardRendererConsole(win, "panel");
+    this.watchRenderer(win, "panel");
 
     win.on("moved", () => {
       if (win.isDestroyed()) return;
@@ -306,6 +324,35 @@ export class WindowManager {
     }
     const position = positionOf(bar);
     if (position !== null) this.store.update({ window: position });
+  }
+
+  /**
+   * Pull both windows back onto a visible work area. Called when a display is removed or its
+   * resolution/scale changes, so undocking a laptop never strands the bar off-screen.
+   */
+  reclamp(): void {
+    const bar = this.getBar();
+    if (bar !== null && !this.dragging) {
+      const position = positionOf(bar);
+      if (position !== null) {
+        const clamped = clampToWorkArea(position.x, position.y, BAR_WIDTH, BAR_HEIGHT);
+        bar.setBounds({ x: clamped.x, y: clamped.y, width: BAR_WIDTH, height: BAR_HEIGHT }, false);
+        this.store.update({ window: clamped });
+      }
+    }
+    const panel = this.getPanel();
+    if (panel !== null) {
+      const position = positionOf(panel);
+      if (position !== null) {
+        const clamped = clampToWorkArea(position.x, position.y, PANEL_WIDTH, PANEL_HEIGHT);
+        panel.setBounds({ x: clamped.x, y: clamped.y, width: PANEL_WIDTH, height: PANEL_HEIGHT }, false);
+      }
+    }
+  }
+
+  /** Report renderer crashes to the diagnostic log. */
+  onRendererGone(listener: (label: string, reason: string) => void): void {
+    this.rendererGone = listener;
   }
 
   broadcast(channel: string, payload: unknown): void {

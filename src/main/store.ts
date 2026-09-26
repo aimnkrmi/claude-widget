@@ -16,6 +16,8 @@ export interface Config {
   autoLaunch: boolean;
   clickThrough: boolean;
   widgetVisible: boolean;
+  notifications: boolean;
+  checkForUpdates: boolean;
   /** OAuth token host that last worked, tried first on the next refresh. */
   tokenHost: string | null;
   statusline: {
@@ -39,6 +41,8 @@ export const DEFAULT_CONFIG: Config = {
   autoLaunch: false,
   clickThrough: false,
   widgetVisible: true,
+  notifications: true,
+  checkForUpdates: true,
   tokenHost: null,
   statusline: {
     registered: false,
@@ -91,6 +95,8 @@ export function reconcileConfig(raw: unknown): Config {
     autoLaunch: asBoolean(raw["autoLaunch"], DEFAULT_CONFIG.autoLaunch),
     clickThrough: asBoolean(raw["clickThrough"], DEFAULT_CONFIG.clickThrough),
     widgetVisible: asBoolean(raw["widgetVisible"], DEFAULT_CONFIG.widgetVisible),
+    notifications: asBoolean(raw["notifications"], DEFAULT_CONFIG.notifications),
+    checkForUpdates: asBoolean(raw["checkForUpdates"], DEFAULT_CONFIG.checkForUpdates),
     tokenHost: asStringOrNull(raw["tokenHost"]),
     statusline: {
       registered: asBoolean(rawStatusline["registered"], false),
@@ -156,6 +162,8 @@ export class Store {
       statuslineRegistered: this.data.statusline.registered,
       statuslineExistingCommand: this.data.statusline.installedCommand,
       statuslineRestorable: this.data.statusline.priorValue !== undefined,
+      notifications: this.data.notifications,
+      checkForUpdates: this.data.checkForUpdates,
     };
   }
 

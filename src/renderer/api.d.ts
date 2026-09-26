@@ -32,6 +32,11 @@ interface WidgetApi {
   registerStatusline: () => Promise<StatuslineStatusAction>;
   unregisterStatusline: () => Promise<StatuslineStatusAction>;
 
+  setNotifications: (enabled: boolean) => Promise<WidgetState>;
+  setCheckForUpdates: (enabled: boolean) => Promise<WidgetState>;
+  openUpdatePage: () => void;
+  openLogFolder: () => void;
+
   openSettingsFolder: () => void;
   quit: () => void;
 }
@@ -52,4 +57,24 @@ interface Critter {
 interface Window {
   /** Defined by `creature.js`, which loads before `bar.js`. */
   cuwCreateCritter: (canvas: HTMLCanvasElement) => Critter;
+}
+
+type TrafficLevel = "ok" | "warn" | "alert" | "unknown";
+type FormatStyle = "compact" | "long";
+
+interface CuwFormat {
+  AMBER: number;
+  RED: number;
+  CRITICAL: number;
+  isResetDue: (resetsAt: number | null, now: number) => boolean;
+  effectivePercent: (win: UsageWindow | null, now: number) => number | null;
+  level: (percent: number | null, rateLimited: boolean) => TrafficLevel;
+  countdown: (resetsAt: number | null, now: number, style?: FormatStyle) => string;
+  age: (timestamp: number | null, now: number, style?: FormatStyle) => string;
+  stamp: (resetsAt: number | null) => string;
+}
+
+interface Window {
+  /** Defined by `format.js`, which loads before `bar.js` and `panel.js`. */
+  cuwFormat: CuwFormat;
 }

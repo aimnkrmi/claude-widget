@@ -46,6 +46,27 @@
         </dl>
       </section>
 
+      <section class="card" id="scoped-card" hidden>
+        <div class="card-head">
+          <span>Weekly, per model</span>
+          <span class="mono pct" id="scoped-pct">--</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" id="scoped-fill"></div></div>
+        <dl>
+          <dt>Resets</dt>
+          <dd class="mono" id="scoped-reset">--</dd>
+          <dt>Countdown</dt>
+          <dd class="mono" id="scoped-countdown">--</dd>
+        </dl>
+      </section>
+
+      <section class="card" id="update" hidden>
+        <p class="small" id="update-text"></p>
+        <div class="actions">
+          <button id="update-open">View release</button>
+        </div>
+      </section>
+
       <section class="card" id="notice" hidden>
         <p id="notice-text"></p>
       </section>
@@ -95,8 +116,17 @@
           <input type="checkbox" id="show-widget" />
           <span>Show widget</span>
         </label>
+        <label class="toggle">
+          <input type="checkbox" id="notifications" />
+          <span>Notify at 85% / 95% and when the session resets</span>
+        </label>
+        <label class="toggle">
+          <input type="checkbox" id="check-updates" />
+          <span>Check GitHub for updates once a day</span>
+        </label>
         <div class="actions">
           <button id="open-settings">Open settings.json</button>
+          <button id="open-logs">Open log folder</button>
           <button id="quit" class="danger">Quit</button>
         </div>
       </section>
@@ -104,6 +134,7 @@
       <footer class="faint tiny" id="footer"></footer>
       <div class="toast" id="toast" hidden></div>
     </main>
+    <script src="format.js"></script>
     <script src="panel.js"></script>
   </body>
 </html>

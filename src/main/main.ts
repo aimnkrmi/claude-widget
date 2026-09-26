@@ -1,13 +1,19 @@
-import { app } from "electron";
+import { app, powerMonitor, screen } from "electron";
 
-import { registerIpc } from "./ipc";
+import { openReleasePage, registerIpc } from "./ipc";
+import { Logger, installCrashHandlers } from "./log";
+import { Notifier } from "./notify";
 import { detectClaudeCodeVersion } from "./oauth";
-import { userDataDir } from "./paths";
+import { applyLoginItem, userDataDir } from "./paths";
 import { Poller } from "./poller";
 import { Store } from "./store";
 import { captureStatusline, isStatuslineInvocation } from "./statusline";
 import { TrayIcon } from "./tray";
+import { UpdateChecker } from "./update";
 import { WindowManager } from "./window";
+
+/** Must match `build.appId` in package.json so toasts and the installer agree on identity. */
+const APP_USER_MODEL_ID = "io.github.claude-usage-widget";
 
 /**
  * Entry point.
@@ -39,7 +45,7 @@ function runCaptureMode(): void {
     });
 }
 
-function runWidgetMode(): void {
+async function runWidgetMode(): Promise<void> {
   // The capture process is short-lived and must never contend for the single-instance lock,
   // otherwise two widgets would appear.
   if (!app.requestSingleInstanceLock()) {
@@ -48,27 +54,58 @@ function runWidgetMode(): void {
   }
 
   const userData = userDataDir();
+  const logger = new Logger(userData);
+  installCrashHandlers(logger);
+  logger.info(`starting v${app.getVersion()} (${app.isPackaged ? "packaged" : "unpackaged"}, electron ${process.versions.electron})`);
+
+  // Windows attributes toasts to this id; without it they show as "electron.app.Electron".
+  app.setAppUserModelId(APP_USER_MODEL_ID);
+
   const store = new Store(userData);
   const windows = new WindowManager(store);
+  windows.onRendererGone((label, reason) => logger.error(`${label} renderer gone: ${reason}`));
 
   // Assigned by `registerIpc` below; the poller cannot start before then, so this is only ever
   // read after it is set.
   let broadcast: () => void = () => undefined;
 
+  const notifier = new Notifier(store, () => {
+    windows.setWidgetVisible(true);
+    windows.togglePanel();
+  });
+
+  let lastLoggedError: string | null = null;
   const poller = new Poller(store, userData, {
     onState: (snapshot) => {
+      if (snapshot.lastError !== lastLoggedError) {
+        lastLoggedError = snapshot.lastError;
+        if (snapshot.lastError !== null) logger.warn(`poll: ${snapshot.lastError}`);
+      }
       tray.update(snapshot);
+      notifier.update(snapshot);
       broadcast();
     },
-    onAuth: () => broadcast(),
+    onAuth: (auth) => {
+      logger.info(`auth: ${auth.status}${auth.detail === null ? "" : ` - ${auth.detail}`}`);
+      broadcast();
+    },
     onPlan: () => broadcast(),
+  });
+
+  const updates = new UpdateChecker(store, app.getVersion(), () => {
+    const found = updates.get();
+    if (found !== null) logger.info(`update available: v${found.version}`);
+    tray.sync();
+    broadcast();
   });
 
   let quitting = false;
   const shutdown = (): void => {
     if (quitting) return;
     quitting = true;
+    logger.info("quitting");
     poller.stop();
+    updates.stop();
     tray.destroy();
     windows.destroy();
     store.dispose();
@@ -78,6 +115,8 @@ function runWidgetMode(): void {
   const tray = new TrayIcon(store, windows, {
     refreshNow: () => void poller.refreshNow(),
     quit: () => shutdown(),
+    getUpdate: () => updates.get(),
+    openUpdate: () => openReleasePage(updates),
   });
 
   broadcast = registerIpc({
@@ -86,6 +125,8 @@ function runWidgetMode(): void {
     windows,
     tray,
     userData,
+    updates,
+    logDir: logger.dir,
     onQuit: () => shutdown(),
   });
 
@@ -97,16 +138,22 @@ function runWidgetMode(): void {
   // Tray app: closing a window must not quit.
   app.on("window-all-closed", () => undefined);
 
+  // After sleep the data can be hours old; after a display change the bar can be off-screen.
+  powerMonitor.on("resume", () => poller.wake());
+  powerMonitor.on("unlock-screen", () => poller.wake());
+  screen.on("display-removed", () => windows.reclamp());
+  screen.on("display-metrics-changed", () => windows.reclamp());
+
   windows.createBar();
   tray.create();
-  poller.start();
-  app.setLoginItemSettings({ openAtLogin: store.get().autoLaunch, args: [] });
+  applyLoginItem(store.get().autoLaunch);
+  updates.start();
 
-  // Probe the real Claude Code version in the background, then re-poll once so the usage request
-  // carries a genuine `User-Agent` rather than the fallback.
-  void detectClaudeCodeVersion().then(() => {
-    void poller.refreshNow();
-  });
+  // The usage endpoint wants a genuine `User-Agent: claude-code/<version>`; a wrong one can earn a
+  // 429 and a 15-minute backoff. Probe the version first (bounded, never throws), then poll.
+  const version = await detectClaudeCodeVersion();
+  logger.info(`user agent: ${version}`);
+  poller.start();
 
   // Handoff from the capture process. A separate short-lived process cannot use Electron's
   // single-instance IPC, so the widget watches the snapshot file instead. It is a few hundred
@@ -120,7 +167,7 @@ if (isStatuslineInvocation(process.argv)) {
   // alongside an already-running widget.
   runCaptureMode();
 } else {
-  void app.whenReady().then(runWidgetMode, (error: unknown) => {
+  void app.whenReady().then(runWidgetMode).catch((error: unknown) => {
     console.error("claude-usage-widget failed to start:", error);
     app.quit();
   });

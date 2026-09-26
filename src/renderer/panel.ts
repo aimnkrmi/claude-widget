@@ -7,12 +7,14 @@
  * contain no `import`/`export` statement, and tsc appends `export {}` to any external module - so
  * this file has no top-level import/export and wraps its body in an IIFE. That also keeps its
  * declarations out of the global scope, where they would collide with `bar.js`.
+ *
+ * The panel window is hidden, not destroyed, when closed. So the once-a-second tick only touches
+ * time-dependent text, does nothing while hidden, and never calls into the main process; the
+ * statusline status (which reads files in main) is fetched only on real state changes and on show.
  */
 
 (() => {
-  const AMBER = 60;
-
-  const RED = 85;
+  const fmt = window.cuwFormat;
 
   const el = <T extends HTMLElement>(id: string): T => {
     const found = document.getElementById(id);
@@ -20,20 +22,35 @@
     return found as T;
   };
 
+  interface WindowCard {
+    card: HTMLElement;
+    pct: HTMLElement;
+    fill: HTMLElement;
+    reset: HTMLElement;
+    countdown: HTMLElement;
+  }
+
+  const card = (prefix: string): WindowCard => ({
+    card: el(`${prefix}-card`),
+    pct: el(`${prefix}-pct`),
+    fill: el(`${prefix}-fill`),
+    reset: el(`${prefix}-reset`),
+    countdown: el(`${prefix}-countdown`),
+  });
+
+  const cards = {
+    session: card("session"),
+    weekly: card("weekly"),
+    weeklyScoped: card("scoped"),
+  };
+
   const nodes = {
     plan: el("plan"),
-    sessionCard: el("session-card"),
-    weeklyCard: el("weekly-card"),
-    sessionPct: el("session-pct"),
-    sessionFill: el("session-fill"),
-    sessionReset: el("session-reset"),
-    sessionCountdown: el("session-countdown"),
-    weeklyPct: el("weekly-pct"),
-    weeklyFill: el("weekly-fill"),
-    weeklyReset: el("weekly-reset"),
-    weeklyCountdown: el("weekly-countdown"),
     notice: el("notice"),
     noticeText: el("notice-text"),
+    update: el("update"),
+    updateText: el("update-text"),
+    updateOpen: el<HTMLButtonElement>("update-open"),
     account: el("account"),
     tier: el("tier"),
     source: el("source"),
@@ -48,7 +65,10 @@
     clickThrough: el<HTMLInputElement>("click-through"),
     autoLaunch: el<HTMLInputElement>("auto-launch"),
     showWidget: el<HTMLInputElement>("show-widget"),
+    notifications: el<HTMLInputElement>("notifications"),
+    checkUpdates: el<HTMLInputElement>("check-updates"),
     openSettings: el<HTMLButtonElement>("open-settings"),
+    openLogs: el<HTMLButtonElement>("open-logs"),
     quit: el<HTMLButtonElement>("quit"),
     footer: el("footer"),
     toast: el("toast"),
@@ -59,42 +79,6 @@
 
   let toastTimer: number | null = null;
 
-  function level(percent: number | null, rateLimited: boolean): "ok" | "warn" | "alert" | "unknown" {
-    if (percent === null) return "unknown";
-    if (rateLimited) return "alert";
-    if (percent > RED) return "alert";
-    if (percent >= AMBER) return "warn";
-    return "ok";
-  }
-
-  function countdown(resetsAt: number | null, now: number): string {
-    if (resetsAt === null || resetsAt <= 0) return "unknown";
-    const remaining = resetsAt - now;
-    if (remaining <= 0) return "rolled over - window has reset";
-    const minutes = Math.floor(remaining / 60000);
-    const days = Math.floor(minutes / 1440);
-    const hours = Math.floor((minutes % 1440) / 60);
-    const rest = minutes % 60;
-    if (days > 0) return `${days}d ${hours}h`;
-    if (hours > 0) return rest > 0 ? `${hours}h ${rest}m` : `${hours}h`;
-    return `${rest}m`;
-  }
-
-  function age(timestamp: number | null, now: number): string {
-    if (timestamp === null || timestamp <= 0) return "never";
-    const minutes = Math.floor(Math.max(0, now - timestamp) / 60000);
-    if (minutes < 1) return `${Math.floor(Math.max(0, now - timestamp) / 1000)}s ago`;
-    if (minutes < 60) return `${minutes}m ago`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h ago`;
-    return `${Math.floor(hours / 24)}d ago`;
-  }
-
-  function stamp(resetsAt: number | null): string {
-    if (resetsAt === null || resetsAt <= 0) return "unknown";
-    return new Date(resetsAt).toLocaleString();
-  }
-
   function toast(message: string): void {
     nodes.toast.textContent = message;
     nodes.toast.hidden = false;
@@ -104,35 +88,29 @@
     }, 6000);
   }
 
-  function renderWindow(
-    card: HTMLElement,
-    pct: HTMLElement,
-    fill: HTMLElement,
-    resetLabel: HTMLElement,
-    countdownLabel: HTMLElement,
-    win: UsageWindow | null,
-    rateLimited: boolean,
-    now: number,
-  ): void {
-    const bucket = level(win?.percentUsed ?? null, rateLimited);
-    card.className = `card level-${bucket}`;
-    if (win === null || win.percentUsed === null) {
-      fill.style.width = "0%";
-      pct.textContent = "--";
-    } else {
-      fill.style.width = `${Math.min(100, Math.max(0, win.percentUsed))}%`;
-      pct.textContent = `${Math.round(win.percentUsed)}%`;
-    }
-    resetLabel.textContent = stamp(win?.resetsAt ?? null);
-    countdownLabel.textContent = countdown(win?.resetsAt ?? null, now);
+  function paintCard(refs: WindowCard, win: UsageWindow | null, rateLimited: boolean, now: number): void {
+    const percent = fmt.effectivePercent(win, now);
+    refs.card.className = `card level-${fmt.level(percent, rateLimited)}`;
+    refs.fill.style.width = percent === null ? "0%" : `${percent}%`;
+    refs.pct.textContent = percent === null ? "--" : `${Math.round(percent)}%`;
+    refs.reset.textContent = fmt.stamp(win?.resetsAt ?? null);
+    refs.countdown.textContent = fmt.countdown(win?.resetsAt ?? null, now, "long");
+  }
+
+  /** Everything that changes with the clock alone. Cheap, and no IPC. */
+  function paintTime(state: WidgetState, now: number): void {
+    const snapshot = state.snapshot;
+    paintCard(cards.session, snapshot.session, snapshot.rateLimited, now);
+    paintCard(cards.weekly, snapshot.weekly, snapshot.rateLimited, now);
+    cards.weeklyScoped.card.hidden = snapshot.weeklyScoped === null;
+    if (snapshot.weeklyScoped !== null) paintCard(cards.weeklyScoped, snapshot.weeklyScoped, snapshot.rateLimited, now);
+    nodes.updated.textContent = fmt.age(snapshot.updatedAt, now, "long");
   }
 
   function render(state: WidgetState): void {
     latest = state;
-    const now = Date.now();
     const snapshot = state.snapshot;
-    renderWindow(nodes.sessionCard, nodes.sessionPct, nodes.sessionFill, nodes.sessionReset, nodes.sessionCountdown, snapshot.session, snapshot.rateLimited, now);
-    renderWindow(nodes.weeklyCard, nodes.weeklyPct, nodes.weeklyFill, nodes.weeklyReset, nodes.weeklyCountdown, snapshot.weekly, snapshot.rateLimited, now);
+    paintTime(state, Date.now());
     nodes.plan.textContent = state.planLabel;
     const blocking = state.auth.status !== "ok";
     const notice = blocking ? state.auth.detail : snapshot.lastError;
@@ -141,17 +119,20 @@
       nodes.notice.className = blocking ? "card error" : "card";
       nodes.noticeText.textContent = notice;
     }
+    nodes.update.hidden = state.update === null;
+    if (state.update !== null) nodes.updateText.textContent = `Version ${state.update.version} is available (you have ${state.appVersion}).`;
     nodes.account.textContent = state.plan.email ?? state.plan.organizationName ?? "unknown";
     nodes.tier.textContent = tierLabel(state);
     nodes.source.textContent = describeSource(snapshot);
-    nodes.updated.textContent = age(snapshot.updatedAt, now);
     nodes.host.textContent = state.auth.tokenHost ?? (state.auth.status === "ok" ? "not refreshed yet" : "unknown");
     nodes.clickThrough.checked = state.settings.clickThrough;
     nodes.autoLaunch.checked = state.settings.autoLaunch;
     nodes.showWidget.checked = state.settings.widgetVisible;
+    nodes.notifications.checked = state.settings.notifications;
+    nodes.checkUpdates.checked = state.settings.checkForUpdates;
     nodes.interval.textContent = `every ${state.settings.refreshIntervalMinutes}m`;
-    nodes.footer.textContent = `v${state.appVersion} - reads and, only when the token rotates, rewrites your Claude Code login.`;
-    renderStatusline(state);
+    nodes.footer.textContent = `v${state.appVersion} - unofficial. Reads and, only when the token rotates, rewrites your Claude Code login.`;
+    if (!document.hidden) void renderStatusline(state);
   }
 
   /**
@@ -192,7 +173,7 @@
       nodes.statuslineSummary.textContent =
         status.lastSnapshotAt === null
           ? "Registered. No snapshot captured yet - start a new Claude Code session."
-          : `Registered. Last snapshot ${age(status.lastSnapshotAt, Date.now())}.`;
+          : `Registered. Last snapshot ${fmt.age(status.lastSnapshotAt, Date.now(), "long")}.`;
     } else if (status.command !== null && !ours) {
       nodes.statuslineSummary.textContent = "Not registered. Claude Code currently uses a different statusline.";
     } else {
@@ -271,14 +252,26 @@
   nodes.showWidget.addEventListener("change", (event) => {
     void window.widgetApi.setWidgetVisible((event.target as HTMLInputElement).checked);
   });
+  nodes.notifications.addEventListener("change", (event) => {
+    void window.widgetApi.setNotifications((event.target as HTMLInputElement).checked);
+  });
+  nodes.checkUpdates.addEventListener("change", (event) => {
+    void window.widgetApi.setCheckForUpdates((event.target as HTMLInputElement).checked);
+  });
+  nodes.updateOpen.addEventListener("click", () => window.widgetApi.openUpdatePage());
   nodes.openSettings.addEventListener("click", () => window.widgetApi.openSettingsFolder());
+  nodes.openLogs.addEventListener("click", () => window.widgetApi.openLogFolder());
   nodes.quit.addEventListener("click", () => window.widgetApi.quit());
   document.addEventListener("keydown", (event: KeyboardEvent) => {
     if (event.key === "Escape") window.widgetApi.hidePanel();
   });
+  // The statusline may have been changed by hand while the panel was hidden.
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && latest !== null) render(latest);
+  });
   void window.widgetApi.getState().then(render);
   window.widgetApi.onState(render);
   setInterval(() => {
-    if (latest !== null) render(latest);
+    if (latest !== null && !document.hidden) paintTime(latest, Date.now());
   }, 1000);
 })();

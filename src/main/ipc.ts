@@ -3,9 +3,10 @@ import { app, ipcMain, shell } from "electron";
 import type { AuthState, PlanInfo, StatuslineStatus, WidgetState } from "../shared/types";
 import type { Poller } from "./poller";
 import { buildStatuslineCommand, claudeAuthStatus, registerStatusline, statuslineStatus, unregisterStatusline } from "./statusline";
-import { claudeSettingsPath } from "./paths";
+import { applyLoginItem, claudeSettingsPath, selfLaunchArgs } from "./paths";
 import type { Store } from "./store";
 import type { TrayIcon } from "./tray";
+import type { UpdateChecker } from "./update";
 import type { WindowManager } from "./window";
 
 /**
@@ -34,6 +35,10 @@ export const CHANNELS = {
   getStatusline: "widget:get-statusline",
   registerStatusline: "widget:register-statusline",
   unregisterStatusline: "widget:unregister-statusline",
+  setNotifications: "widget:set-notifications",
+  setCheckForUpdates: "widget:set-check-for-updates",
+  openUpdatePage: "widget:open-update-page",
+  openLogFolder: "widget:open-log-folder",
   openSettingsFolder: "widget:open-settings-folder",
   quit: "widget:quit",
 } as const;
@@ -44,7 +49,15 @@ export interface IpcDeps {
   windows: WindowManager;
   tray: TrayIcon;
   userData: string;
+  updates: UpdateChecker;
+  logDir: string;
   onQuit: () => void;
+}
+
+/** Open a release page, but only ever on github.com. */
+export function openReleasePage(updates: UpdateChecker): void {
+  const url = updates.get()?.url;
+  if (url !== undefined && url.startsWith("https://github.com/")) void shell.openExternal(url);
 }
 
 /**
@@ -84,6 +97,7 @@ export function buildState(deps: IpcDeps): WidgetState {
   };
   return {
     snapshot: deps.poller.getSnapshot(),
+    update: deps.updates.get(),
     plan,
     planLabel: planLabel(auth, plan),
     auth,
@@ -159,7 +173,7 @@ export function registerIpc(deps: IpcDeps): () => void {
 
   ipcMain.handle(CHANNELS.setAutoLaunch, (_event, enabled: boolean) => {
     const value = Boolean(enabled);
-    app.setLoginItemSettings({ openAtLogin: value, args: [] });
+    applyLoginItem(value);
     store.update({ autoLaunch: value });
     publish();
     return buildState(deps);
@@ -176,7 +190,7 @@ export function registerIpc(deps: IpcDeps): () => void {
   ipcMain.handle(CHANNELS.getStatusline, () => statuslineInfo(deps));
 
   ipcMain.handle(CHANNELS.registerStatusline, () => {
-    const command = buildStatuslineCommand(app.getPath("exe"));
+    const command = buildStatuslineCommand(process.execPath, selfLaunchArgs());
     const outcome = registerStatusline(claudeSettingsPath(), command, store);
     publish();
     return {
@@ -198,6 +212,29 @@ export function registerIpc(deps: IpcDeps): () => void {
       status: statuslineInfo(deps),
       state: buildState(deps),
     };
+  });
+
+  ipcMain.handle(CHANNELS.setNotifications, (_event, enabled: boolean) => {
+    store.update({ notifications: Boolean(enabled) });
+    publish();
+    return buildState(deps);
+  });
+
+  ipcMain.handle(CHANNELS.setCheckForUpdates, (_event, enabled: boolean) => {
+    const value = Boolean(enabled);
+    store.update({ checkForUpdates: value });
+    if (value) void deps.updates.check();
+    tray.sync();
+    publish();
+    return buildState(deps);
+  });
+
+  ipcMain.handle(CHANNELS.openUpdatePage, () => {
+    openReleasePage(deps.updates);
+  });
+
+  ipcMain.handle(CHANNELS.openLogFolder, () => {
+    void shell.openPath(deps.logDir);
   });
 
   ipcMain.handle(CHANNELS.openSettingsFolder, () => {

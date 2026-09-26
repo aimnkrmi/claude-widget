@@ -1,4 +1,3 @@
-import { execFile } from "node:child_process";
 import {
   copyFileSync,
   existsSync,
@@ -12,6 +11,7 @@ import {
 import { dirname, join } from "node:path";
 
 import type { StatuslineStatus } from "../shared/types";
+import { runClaude } from "./claudecli";
 import { claudeSettingsPath } from "./paths";
 import type { Store } from "./store";
 
@@ -274,24 +274,22 @@ export function statuslineStatus(store: Store, userData: string): StatuslineStat
  * otherwise, so the path is emitted with forward slashes and wrapped in double quotes; the
  * project path routinely contains spaces.
  */
-export function buildStatuslineCommand(execPath: string): string {
-  const normalized = execPath.replace(/\\/g, "/");
-  const quoted = normalized.includes(" ") ? `"${normalized}"` : normalized;
-  return `${quoted} ${STATUSLINE_FLAG}`;
+export function buildStatuslineCommand(execPath: string, extraArgs: readonly string[] = []): string {
+  const quote = (part: string): string => {
+    const normalized = part.replace(/\\/g, "/");
+    return normalized.includes(" ") ? `"${normalized}"` : normalized;
+  };
+  // `extraArgs` is the app directory when running unpackaged (`electron .`); see `selfLaunchArgs`.
+  return [execPath, ...extraArgs].map(quote).concat(STATUSLINE_FLAG).join(" ");
 }
 
 /**
- * Best-effort discovery of the `claude` executable, used only to offer `claude auth status` as a
- * fallback diagnostic. Never throws.
+ * Run `claude auth status`, used only as a fallback diagnostic in the panel. Never throws.
  */
-export function claudeAuthStatus(): Promise<{ ok: boolean; output: string }> {
-  return new Promise((resolve) => {
-    const bin = process.platform === "win32" ? "claude.cmd" : "claude";
-    execFile(bin, ["auth", "status"], { timeout: 6_000, windowsHide: true, shell: false }, (error, stdout, stderr) => {
-      const output = `${String(stdout)}${String(stderr)}`.trim();
-      // `claude auth status` exits non-zero when not signed in, but its JSON output is still the
-      // useful signal, so success is judged on whether anything printable came back.
-      resolve({ ok: !error || output !== "", output });
-    });
-  });
+export async function claudeAuthStatus(): Promise<{ ok: boolean; output: string }> {
+  const run = await runClaude(["auth", "status"], 6_000);
+  const output = `${run.stdout}${run.stderr}`.trim();
+  // `claude auth status` exits non-zero when not signed in, but its output is still the useful
+  // signal, so success is judged on whether the CLI ran and printed anything.
+  return { ok: run.found && output !== "", output };
 }

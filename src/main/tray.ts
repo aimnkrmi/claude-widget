@@ -1,7 +1,7 @@
-import { Menu, Tray as ElectronTray, app, nativeImage } from "electron";
+import { Menu, Tray as ElectronTray, nativeImage } from "electron";
 
-import { assetPath } from "./paths";
-import type { UsageSnapshot } from "../shared/types";
+import { applyLoginItem, assetPath } from "./paths";
+import type { UpdateInfo, UsageSnapshot } from "../shared/types";
 import { trafficLevel } from "./normalize";
 import type { Store } from "./store";
 import type { WindowManager } from "./window";
@@ -13,6 +13,7 @@ import type { WindowManager } from "./window";
 
 const ICON_VARIANTS = {
   ok: ["tray.png", "tray@2x.png"],
+  warn: ["tray-warn.png", "tray-warn@2x.png"],
   muted: ["tray-muted.png", "tray-muted@2x.png"],
   alert: ["tray-alert.png", "tray-alert@2x.png"],
 } as const;
@@ -22,6 +23,9 @@ type IconVariant = keyof typeof ICON_VARIANTS;
 export interface TrayActions {
   refreshNow: () => void;
   quit: () => void;
+  /** A newer release, if the update check found one. */
+  getUpdate: () => UpdateInfo | null;
+  openUpdate: () => void;
 }
 
 export class TrayIcon {
@@ -42,8 +46,10 @@ export class TrayIcon {
     this.tray.on("click", () => {
       const bar = this.windows.getBar();
       if (bar === null) return;
-      if (bar.isVisible() && !this.store.get().clickThrough) this.windows.hidePanel();
-      this.windows.setWidgetVisible(!bar.isVisible() || this.store.get().widgetVisible);
+      const show = !bar.isVisible();
+      if (!show) this.windows.hidePanel();
+      this.windows.setWidgetVisible(show);
+      this.rebuild();
     });
     this.tray.on("right-click", () => this.rebuild());
     this.rebuild();
@@ -62,9 +68,15 @@ export class TrayIcon {
   /** Swap the icon to match the worst of the two windows. Cheap no-op when unchanged. */
   update(snapshot: UsageSnapshot): void {
     if (this.tray === null) return;
-    const level = trafficLevel(snapshot.session, snapshot.rateLimited);
-    const weekly = trafficLevel(snapshot.weekly, snapshot.rateLimited);
-    const variant: IconVariant = snapshot.source === "unknown" ? "muted" : level === "alert" || weekly === "alert" ? "alert" : "ok";
+    const levels = [trafficLevel(snapshot.session, snapshot.rateLimited), trafficLevel(snapshot.weekly, snapshot.rateLimited)];
+    const variant: IconVariant =
+      snapshot.source === "unknown"
+        ? "muted"
+        : levels.includes("alert")
+          ? "alert"
+          : levels.includes("warn")
+            ? "warn"
+            : "ok";
     if (variant !== this.lastVariant) {
       this.lastVariant = variant;
       this.tray.setImage(this.loadImage(variant));
@@ -86,13 +98,23 @@ export class TrayIcon {
   private rebuild(): void {
     if (this.tray === null) return;
     const config = this.store.get();
+    const update = this.actions.getUpdate();
     this.tray.setContextMenu(
       Menu.buildFromTemplate([
+        ...(update === null
+          ? []
+          : [
+              { label: `Update available: v${update.version}`, click: () => this.actions.openUpdate() },
+              { type: "separator" as const },
+            ]),
         {
           label: "Show widget",
           type: "checkbox",
           checked: config.widgetVisible,
-          click: () => this.windows.setWidgetVisible(true),
+          click: (item) => {
+            if (!item.checked) this.windows.hidePanel();
+            this.windows.setWidgetVisible(item.checked);
+          },
         },
         {
           label: "Click through",
@@ -109,7 +131,7 @@ export class TrayIcon {
           checked: config.autoLaunch,
           click: (item) => {
             const enabled = item.checked;
-            app.setLoginItemSettings({ openAtLogin: enabled, args: [] });
+            applyLoginItem(enabled);
             this.store.update({ autoLaunch: enabled });
           },
         },

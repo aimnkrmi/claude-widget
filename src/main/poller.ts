@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 
 import type { AuthState, PlanInfo, UsageSnapshot, UsageSource, UsageWindow, WindowKind } from "../shared/types";
 import { type ClaudeCredentials, hasRequiredScope, needsRefresh, readCredentials } from "./credentials";
@@ -21,6 +21,44 @@ const STALE_AFTER_MS = 30 * 60_000;
 /** 429 backoff ladder in minutes; the last entry repeats. */
 const BACKOFF_MINUTES = [15, 30, 30, 60];
 
+/** Poll this long after a window's reset so the server has rolled it over. */
+const RESET_GRACE_MS = 60_000;
+
+/** Never schedule a poll sooner than this, whatever the reset times say. */
+const MIN_DELAY_MS = 60_000;
+
+/** The plan badge rarely changes; do not spend a profile request on every poll. */
+const PROFILE_REFRESH_MS = 60 * 60_000;
+
+export interface DelayInput {
+  now: number;
+  throttled: boolean;
+  backoffIndex: number;
+  intervalMinutes: number;
+  /** `resetsAt` of every displayed window, epoch ms. */
+  resets: ReadonlyArray<number | null>;
+}
+
+/**
+ * Delay until the next poll.
+ *
+ * Normally the configured interval, but pulled forward to just after the earliest upcoming window
+ * reset so a rolled-over window does not keep showing its old percentage for a whole interval. That
+ * adds at most one request per reset. Under 429 backoff the ladder always wins.
+ */
+export function nextDelayMs(input: DelayInput): number {
+  if (input.throttled) {
+    const minutes = BACKOFF_MINUTES[Math.min(input.backoffIndex, BACKOFF_MINUTES.length - 1)] ?? 30;
+    return minutes * 60_000;
+  }
+  const interval = Math.max(MIN_REFRESH_MINUTES, input.intervalMinutes) * 60_000;
+  const upcoming = input.resets
+    .filter((at): at is number => at !== null && at > input.now)
+    .map((at) => at - input.now + RESET_GRACE_MS);
+  const soonest = Math.min(interval, ...upcoming);
+  return Math.max(MIN_DELAY_MS, soonest);
+}
+
 interface SourceReading {
   usage: NormalizedUsage;
   /** Epoch ms the reading was produced. */
@@ -37,6 +75,7 @@ function emptySnapshot(): UsageSnapshot {
   return {
     session: null,
     weekly: null,
+    weeklyScoped: null,
     rateLimited: false,
     source: "unknown",
     fetchedAt: null,
@@ -100,6 +139,9 @@ export class Poller {
   private oauthReading: SourceReading | null = null;
   private statuslineReading: SourceReading | null = null;
 
+  /** Epoch ms of the last profile request; 0 forces one on the next successful poll. */
+  private lastProfileAt = 0;
+
   constructor(
     private readonly store: Store,
     private readonly userData: string,
@@ -156,10 +198,34 @@ export class Poller {
     this.halted = false;
     this.oauthReading = null;
     this.lastError = null;
+    this.lastProfileAt = 0;
     void this.refresh("manual");
   }
 
+  /**
+   * The machine woke from sleep or was unlocked, so the displayed data may be hours old. Refresh
+   * now unless the endpoint asked us to back off or the login cannot work.
+   */
+  wake(): void {
+    if (this.stopped || this.halted || this.throttled) {
+      this.compose();
+      return;
+    }
+    void this.refresh("scheduled");
+  }
+
+  /** mtime of the snapshot last parsed, so the 5-second handoff poll is a stat, not a read. */
+  private statuslineMtime = -1;
+
   private reloadStatusline(): void {
+    let mtime = 0;
+    try {
+      mtime = statSync(snapshotPath(this.userData)).mtimeMs;
+    } catch {
+      mtime = 0;
+    }
+    if (mtime === this.statuslineMtime) return;
+    this.statuslineMtime = mtime;
     this.statuslineReading = readStatuslineSnapshot(this.userData);
   }
 
@@ -170,12 +236,16 @@ export class Poller {
       this.timer = null;
       return;
     }
-    const minutes = this.throttled
-      ? (BACKOFF_MINUTES[Math.min(this.backoffIndex, BACKOFF_MINUTES.length - 1)] ?? 30)
-      : Math.max(MIN_REFRESH_MINUTES, this.store.get().refreshIntervalMinutes);
+    const delay = nextDelayMs({
+      now: Date.now(),
+      throttled: this.throttled,
+      backoffIndex: this.backoffIndex,
+      intervalMinutes: this.store.get().refreshIntervalMinutes,
+      resets: [this.snapshot.session?.resetsAt ?? null, this.snapshot.weekly?.resetsAt ?? null],
+    });
     this.timer = setTimeout(() => {
       void this.refresh("scheduled");
-    }, minutes * 60_000);
+    }, delay);
     this.timer.unref?.();
   }
 
@@ -236,7 +306,10 @@ export class Poller {
       this.backoffIndex = 0;
       this.lastError = null;
       this.compose();
-      void this.refreshProfile(accessToken, read.data);
+      if (now - this.lastProfileAt >= PROFILE_REFRESH_MS) {
+        this.lastProfileAt = now;
+        void this.refreshProfile(accessToken, read.data);
+      }
     } catch (error) {
       this.handleRequestFailure(error, read.path);
     }
@@ -331,6 +404,7 @@ export class Poller {
     const next: UsageSnapshot = {
       session: reading ? toWindow(reading.usage.session, "session") : null,
       weekly: reading ? toWindow(reading.usage.weekly, "weekly") : null,
+      weeklyScoped: reading ? toWindow(reading.usage.weeklyScoped, "weekly") : null,
       rateLimited: reading?.usage.rateLimited ?? false,
       source,
       fetchedAt: this.oauthReading?.at ?? null,
@@ -394,5 +468,5 @@ export class Poller {
 function windowSignature(snapshot: UsageSnapshot): string {
   const describe = (win: UsageWindow | null): string =>
     win === null ? "-" : `${win.percentUsed}|${win.resetsAt}|${win.severity}|${win.active}|${win.scoped}|${win.rawKind}`;
-  return `${describe(snapshot.session)}#${describe(snapshot.weekly)}#${snapshot.rateLimited}`;
+  return `${describe(snapshot.session)}#${describe(snapshot.weekly)}#${describe(snapshot.weeklyScoped)}#${snapshot.rateLimited}`;
 }

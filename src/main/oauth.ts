@@ -1,6 +1,5 @@
-import { execFile } from "node:child_process";
-
 import type { PlanInfo } from "../shared/types";
+import { runClaude } from "./claudecli";
 import {
   type ClaudeAiOauth,
   type ClaudeCredentials,
@@ -69,40 +68,13 @@ export function userAgent(): string {
 }
 
 /** Probe the installed Claude Code version. Never throws; falls back to a plausible version. */
-export function detectClaudeCodeVersion(): Promise<string> {
-  if (cachedUserAgent !== null) return Promise.resolve(cachedUserAgent);
-  return new Promise((resolve) => {
-    const candidates =
-      process.platform === "win32" ? ["claude.cmd", "claude"] : ["claude"];
-    let index = 0;
-
-    const tryNext = (): void => {
-      const bin = candidates[index];
-      index += 1;
-      if (bin === undefined) {
-        resolve(`claude-code/${FALLBACK_CLAUDE_CODE_VERSION}`);
-        return;
-      }
-      execFile(
-        bin,
-        ["--version"],
-        { timeout: VERSION_PROBE_TIMEOUT_MS, windowsHide: true, shell: false },
-        (error, stdout) => {
-          if (!error) {
-            const match = /\d+\.\d+\.\d+[^\s]*/.exec(String(stdout));
-            if (match) {
-              cachedUserAgent = `claude-code/${match[0]}`;
-              resolve(cachedUserAgent);
-              return;
-            }
-          }
-          tryNext();
-        },
-      );
-    };
-
-    tryNext();
-  });
+export async function detectClaudeCodeVersion(): Promise<string> {
+  if (cachedUserAgent !== null) return cachedUserAgent;
+  const run = await runClaude(["--version"], VERSION_PROBE_TIMEOUT_MS);
+  const match = run.ok ? /\d+\.\d+\.\d+[^\s]*/.exec(run.stdout) : null;
+  if (match === null) return `claude-code/${FALLBACK_CLAUDE_CODE_VERSION}`;
+  cachedUserAgent = `claude-code/${match[0]}`;
+  return cachedUserAgent;
 }
 
 /** Test seam: reset the memoized version. */

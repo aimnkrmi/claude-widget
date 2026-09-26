@@ -7,8 +7,6 @@ import {
   EMPTY_USAGE,
   clampPercent,
   detectRateLimited,
-  formatAge,
-  formatCountdown,
   isEmptyUsage,
   isResetDue,
   normalizeStatuslinePayload,
@@ -229,25 +227,5 @@ describe("presentation helpers", () => {
     assert.equal(isResetDue(now - 1, now), true);
     assert.equal(isResetDue(now + 1, now), false);
     assert.equal(isResetDue(null, now), false);
-  });
-
-  it("formats countdowns without going negative", () => {
-    const now = 1_800_000_000_000;
-    assert.equal(formatCountdown(null, now), "--");
-    assert.equal(formatCountdown(now - 5000, now), "rolled over");
-    assert.equal(formatCountdown(now + 30_000, now), "<1m");
-    assert.equal(formatCountdown(now + 48 * 60_000, now), "48m");
-    assert.equal(formatCountdown(now + (2 * 60 + 14) * 60_000, now), "2h 14m");
-    assert.equal(formatCountdown(now + 3 * 3_600_000, now), "3h");
-    assert.equal(formatCountdown(now + 50 * 3_600_000, now), "2d 2h");
-  });
-
-  it("formats relative ages", () => {
-    const now = 1_800_000_000_000;
-    assert.equal(formatAge(null, now), "never");
-    assert.equal(formatAge(now - 5_000, now), "just now");
-    assert.equal(formatAge(now - 4 * 60_000, now), "4m ago");
-    assert.equal(formatAge(now - 2 * 3_600_000, now), "2h ago");
-    assert.equal(formatAge(now - 3 * 86_400_000, now), "3d ago");
   });
 });

@@ -61,8 +61,10 @@ function encodePng(width, height, rgba) {
   ]);
 }
 
+// One colour per state so the tray reads at a glance; these match `--ok/--warn/--alert` in shared.css.
 const VARIANTS = {
-  tray: { top: [0x3f, 0xb9, 0x50], bottom: [0xd2, 0x99, 0x22] },
+  tray: { top: [0x3f, 0xb9, 0x50], bottom: [0x3f, 0xb9, 0x50] },
+  "tray-warn": { top: [0xd2, 0x99, 0x22], bottom: [0xd2, 0x99, 0x22] },
   "tray-muted": { top: [0x6b, 0x74, 0x82], bottom: [0x4b, 0x55, 0x63] },
   "tray-alert": { top: [0xf8, 0x51, 0x49], bottom: [0xf8, 0x51, 0x49] },
 };
@@ -124,3 +126,51 @@ for (const [name, variant] of Object.entries(VARIANTS)) {
   writeFileSync(join(outDir, `${name}@2x.png`), encodePng(32, 32, drawVariant(32, variant)));
   console.log(`wrote assets/${name}.png and assets/${name}@2x.png`);
 }
+
+/**
+ * The 256px application icon used by the installer and the exe: the same two bars on a dark rounded
+ * tile, one mostly full (green) and one partly full (amber). electron-builder converts it to .ico.
+ */
+function drawAppIcon(size) {
+  const rgba = Buffer.alloc(size * size * 4, 0);
+  const bg = [0x14, 0x17, 0x1c];
+  const track = [0x26, 0x2b, 0x33];
+  const radius = size * 0.2;
+  const bars = [
+    { y0: 0.3, y1: 0.44, fill: 0.72, color: [0x3f, 0xb9, 0x50] },
+    { y0: 0.56, y1: 0.7, fill: 0.46, color: [0xd2, 0x99, 0x22] },
+  ];
+  const left = size * 0.18;
+  const right = size * 0.82;
+
+  const insideRounded = (px, py, x0, y0, x1, y1, r) => {
+    const cx = Math.min(Math.max(px, x0 + r), x1 - r);
+    const cy = Math.min(Math.max(py, y0 + r), y1 - r);
+    return (px - cx) ** 2 + (py - cy) ** 2 <= r * r;
+  };
+
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const px = x + 0.5;
+      const py = y + 0.5;
+      if (!insideRounded(px, py, 0, 0, size, size, radius)) continue;
+      let color = bg;
+      for (const bar of bars) {
+        const top = size * bar.y0;
+        const bottom = size * bar.y1;
+        const r = (bottom - top) / 2;
+        if (!insideRounded(px, py, left, top, right, bottom, r)) continue;
+        color = px <= left + (right - left) * bar.fill ? bar.color : track;
+      }
+      const offset = (y * size + x) * 4;
+      rgba[offset] = color[0];
+      rgba[offset + 1] = color[1];
+      rgba[offset + 2] = color[2];
+      rgba[offset + 3] = 255;
+    }
+  }
+  return rgba;
+}
+
+writeFileSync(join(outDir, "icon.png"), encodePng(256, 256, drawAppIcon(256)));
+console.log("wrote assets/icon.png");

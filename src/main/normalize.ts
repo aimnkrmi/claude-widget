@@ -30,12 +30,15 @@ export interface RawWindow {
 export interface NormalizedUsage {
   session: RawWindow | null;
   weekly: RawWindow | null;
+  /** First `weekly_scoped` (per-model) limit, if any. */
+  weeklyScoped: RawWindow | null;
   rateLimited: boolean;
 }
 
 export const EMPTY_USAGE: NormalizedUsage = Object.freeze({
   session: null,
   weekly: null,
+  weeklyScoped: null,
   rateLimited: false,
 });
 
@@ -230,7 +233,7 @@ function isWindowPopulated(win: RawWindow | null): win is RawWindow {
  * Normalize `GET /api/oauth/usage`.
  *
  * Preference order per window: a structured `limits[]` entry, then the flat key. `weekly_scoped`
- * entries are parsed but never surfaced as the overall weekly window (see plan, v1 scope).
+ * entries are never surfaced as the overall weekly window; they are reported separately.
  */
 export function normalizeUsageResponse(raw: unknown): NormalizedUsage {
   if (!isRecord(raw)) return { ...EMPTY_USAGE };
@@ -261,6 +264,7 @@ export function normalizeUsageResponse(raw: unknown): NormalizedUsage {
   const out: NormalizedUsage = {
     session: pick(structured.session, flat.session),
     weekly: pick(structured.weekly, flat.weekly),
+    weeklyScoped: isWindowPopulated(scoped) ? scoped : null,
     rateLimited: detectRateLimited(raw, [structured.session, structured.weekly, scoped, flat.session, flat.weekly]),
   };
   return out;
@@ -344,6 +348,7 @@ export function normalizeStatuslinePayload(raw: unknown): NormalizedUsage {
   return {
     session: found.session,
     weekly: found.weekly,
+    weeklyScoped: null,
     // `status` lives inside `rate_limits` in this dialect, so check the container too.
     rateLimited: detectRateLimited(container, [found.session, found.weekly]) || detectRateLimited(raw, [found.session, found.weekly]),
   };
@@ -374,37 +379,4 @@ export function trafficLevel(win: UsageWindow | null, accountRateLimited = false
  */
 export function isResetDue(resetsAt: number | null, now: number): boolean {
   return resetsAt !== null && resetsAt > 0 && resetsAt <= now;
-}
-
-/** Format a reset timestamp as a compact human duration, e.g. `2h 14m`, `48m`, `rolled over`. */
-export function formatCountdown(resetsAt: number | null, now: number): string {
-  if (resetsAt === null || resetsAt <= 0) return "--";
-  const remaining = resetsAt - now;
-  if (remaining <= 0) return "rolled over";
-  const totalMinutes = Math.floor(remaining / 60000);
-  if (totalMinutes < 1) return "<1m";
-  const days = Math.floor(totalMinutes / 1440);
-  const hours = Math.floor((totalMinutes % 1440) / 60);
-  const minutes = totalMinutes % 60;
-  if (days > 0) return `${days}d ${hours}h`;
-  if (hours > 0) return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
-  return `${minutes}m`;
-}
-
-/** Format an epoch ms timestamp for the detail panel, in the user's local time. */
-export function formatTimestamp(resetsAt: number | null): string {
-  if (resetsAt === null || resetsAt <= 0) return "unknown";
-  return new Date(resetsAt).toLocaleString();
-}
-
-/** Format a relative age such as `just now`, `4m ago`, `2h ago`. */
-export function formatAge(timestamp: number | null, now: number): string {
-  if (timestamp === null || timestamp <= 0) return "never";
-  const delta = Math.max(0, now - timestamp);
-  const minutes = Math.floor(delta / 60000);
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
 }

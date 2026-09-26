@@ -55,6 +55,13 @@ describe("statusline command construction", () => {
     );
     assert.equal(buildStatuslineCommand("C:\\tools\\widget.exe"), "C:/tools/widget.exe statusline");
   });
+
+  it("includes the app directory when running unpackaged", () => {
+    assert.equal(
+      buildStatuslineCommand("C:\\node_modules\\electron\\dist\\electron.exe", ["D:\\My Apps\\claude-widget"]),
+      'C:/node_modules/electron/dist/electron.exe "D:/My Apps/claude-widget" statusline',
+    );
+  });
 });
 
 describe("parseAndStoreStatusline", () => {
