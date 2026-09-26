@@ -1,0 +1,22 @@
+{
+  "name": "claude-usage-widget",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Frameless always-on-top Windows widget showing Claude 5h/7d subscription quota",
+  "main": "dist/main/main.js",
+  "scripts": {
+    "clean": "node scripts/clean.mjs",
+    "build": "npm run clean && npm run build:main && npm run build:renderer",
+    "build:main": "tsc -p tsconfig.main.json",
+    "build:renderer": "tsc -p tsconfig.renderer.json && node scripts/copy-renderer-assets.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "tsc -p tsconfig.test.json && node --test \"dist-test/test/**/*.test.js\"",
+    "start": "npm run build && electron .",
+    "dev": "npm run build && electron ."
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "electron": "^38.0.0",
+    "typescript": "^5.9.0"
+  }
+}

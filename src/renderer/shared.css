@@ -1,0 +1,144 @@
+:root {
+  color-scheme: dark;
+
+  --bg: #14171c;
+  --bg-soft: #1b1f26;
+  --bg-border: #2b313b;
+  --fg: #e6e9ef;
+  --fg-dim: #9aa3b2;
+  --fg-faint: #6b7482;
+
+  --ok: #3fb950;
+  --warn: #d29922;
+  --alert: #f85149;
+  --unknown: #4b5563;
+
+  --track: #262b33;
+  --accent: #7aa2f7;
+  --font: "Segoe UI", -apple-system, system-ui, sans-serif;
+  --mono: "Cascadia Mono", "Consolas", ui-monospace, monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+}
+
+/*
+ * The UA's `[hidden] { display: none }` loses to any author rule that sets `display`, so an element
+ * hidden with the `hidden` property would still show inside e.g. `.card { display: flex }`.
+ */
+[hidden] {
+  display: none !important;
+}
+
+body {
+  font-family: var(--font);
+  color: var(--fg);
+  background: transparent;
+  overflow: hidden;
+}
+
+.level-ok {
+  --level: var(--ok);
+}
+.level-warn {
+  --level: var(--warn);
+}
+.level-alert {
+  --level: var(--alert);
+}
+.level-unknown {
+  --level: var(--unknown);
+}
+
+/* A slim, quiet bar. Rounded, blurred, and only as loud as the quota level demands. */
+.surface {
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  border: 1px solid var(--bg-border);
+  border-radius: 10px;
+  backdrop-filter: blur(12px);
+}
+
+.bar-track {
+  position: relative;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--track);
+  overflow: hidden;
+}
+
+.bar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+  border-radius: 3px;
+  background: var(--level);
+  transition: width 400ms ease;
+}
+
+.bar-fill.indeterminate {
+  width: 35%;
+  animation: slide 1.4s ease-in-out infinite;
+}
+
+@keyframes slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar-fill {
+    transition: none;
+  }
+  .bar-fill.indeterminate {
+    animation: none;
+    width: 35%;
+  }
+}
+
+.pill {
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid var(--bg-border);
+  color: var(--fg-dim);
+  white-space: nowrap;
+}
+
+.pill.accent {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.pill.warn {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 45%, transparent);
+}
+
+.pill.alert {
+  color: var(--alert);
+  border-color: color-mix(in srgb, var(--alert) 45%, transparent);
+}
+
+.muted {
+  color: var(--fg-dim);
+}
+
+.faint {
+  color: var(--fg-faint);
+}
+
+.mono {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}

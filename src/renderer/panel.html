@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self' data:"
+    />
+    <title>Claude Usage Details</title>
+    <link rel="stylesheet" href="shared.css" />
+    <link rel="stylesheet" href="panel.css" />
+  </head>
+  <body>
+    <main id="panel" class="surface">
+      <header>
+        <h1>Claude Usage</h1>
+        <span class="pill accent" id="plan">--</span>
+        <button id="close" class="icon" title="Close">&times;</button>
+      </header>
+
+      <section class="card" id="session-card">
+        <div class="card-head">
+          <span>Session window</span>
+          <span class="mono pct" id="session-pct">--</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" id="session-fill"></div></div>
+        <dl>
+          <dt>Resets</dt>
+          <dd class="mono" id="session-reset">--</dd>
+          <dt>Countdown</dt>
+          <dd class="mono" id="session-countdown">--</dd>
+        </dl>
+      </section>
+
+      <section class="card" id="weekly-card">
+        <div class="card-head">
+          <span>Weekly window</span>
+          <span class="mono pct" id="weekly-pct">--</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" id="weekly-fill"></div></div>
+        <dl>
+          <dt>Resets</dt>
+          <dd class="mono" id="weekly-reset">--</dd>
+          <dt>Countdown</dt>
+          <dd class="mono" id="weekly-countdown">--</dd>
+        </dl>
+      </section>
+
+      <section class="card" id="notice" hidden>
+        <p id="notice-text"></p>
+      </section>
+
+      <section class="facts">
+        <dl>
+          <dt>Account</dt>
+          <dd id="account">--</dd>
+          <dt>Plan tier</dt>
+          <dd id="tier">--</dd>
+          <dt>Data source</dt>
+          <dd id="source">--</dd>
+          <dt>Last success</dt>
+          <dd id="updated">--</dd>
+          <dt>Token host</dt>
+          <dd id="host" class="mono">--</dd>
+        </dl>
+      </section>
+
+      <section class="card" id="statusline-card">
+        <div class="card-head"><span>Claude Code statusline</span></div>
+        <p class="faint small" id="statusline-summary">--</p>
+        <p class="faint tiny mono" id="statusline-command"></p>
+        <div class="actions">
+          <button id="statusline-toggle">--</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-head"><span>Refresh</span><span class="faint tiny mono" id="interval"></span></div>
+        <div class="actions">
+          <button id="refresh">Refresh now</button>
+          <button id="recheck">Re-check sign-in</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <label class="toggle">
+          <input type="checkbox" id="click-through" />
+          <span>Click through (clicks reach the app underneath)</span>
+        </label>
+        <label class="toggle">
+          <input type="checkbox" id="auto-launch" />
+          <span>Launch at login</span>
+        </label>
+        <label class="toggle">
+          <input type="checkbox" id="show-widget" />
+          <span>Show widget</span>
+        </label>
+        <div class="actions">
+          <button id="open-settings">Open settings.json</button>
+          <button id="quit" class="danger">Quit</button>
+        </div>
+      </section>
+
+      <footer class="faint tiny" id="footer"></footer>
+      <div class="toast" id="toast" hidden></div>
+    </main>
+    <script src="panel.js"></script>
+  </body>
+</html>

@@ -1,0 +1,42 @@
+{
+  "hook_event_name": "Status",
+  "session_id": "0f1b2c3d-4e5f-6789-abcd-ef0123456789",
+  "transcript_path": "C:\\Users\\Aiman\\.claude\\projects\\demo\\0f1b2c3d.jsonl",
+  "cwd": "D:\\Programming Language\\claude-widget",
+  "model": {
+    "id": "claude-opus-4",
+    "display_name": "Opus"
+  },
+  "workspace": {
+    "current_dir": "D:\\Programming Language\\claude-widget",
+    "project_dir": "D:\\Programming Language\\claude-widget"
+  },
+  "version": "2.0.14",
+  "output_style": {
+    "name": "default"
+  },
+  "cost": {
+    "total_cost_usd": 0.4213,
+    "total_duration_ms": 812345,
+    "total_api_duration_ms": 402113,
+    "total_lines_added": 412,
+    "total_lines_removed": 88
+  },
+  "exceeds_200k_tokens": false,
+  "rate_limits": {
+    "five_hour": {
+      "used_percentage": 45.5,
+      "resets_at": 1790422400
+    },
+    "seven_day": {
+      "used_percentage": 12.25,
+      "resets_at": 1790996400
+    },
+    "seven_day_opus": {
+      "used_percentage": 3,
+      "resets_at": 1790996400
+    },
+    "updated_at": "2026-09-26T11:20:00.000Z",
+    "status": "normal"
+  }
+}

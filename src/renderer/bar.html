@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self' data:"
+    />
+    <title>Claude Usage</title>
+    <link rel="stylesheet" href="shared.css" />
+    <link rel="stylesheet" href="bar.css" />
+  </head>
+  <body>
+    <main id="bar" class="surface" title="Click for details. Drag to move.">
+      <canvas id="critter" class="critter" aria-hidden="true"></canvas>
+      <div class="bars">
+        <div class="row" id="row-session" data-window="session">
+          <span class="label">5h</span>
+          <div class="bar-track"><div class="bar-fill" id="fill-session"></div></div>
+          <span class="pct mono" id="pct-session">--</span>
+          <span class="reset mono" id="reset-session">--</span>
+        </div>
+        <div class="row" id="row-weekly" data-window="weekly">
+          <span class="label">7d</span>
+          <div class="bar-track"><div class="bar-fill" id="fill-weekly"></div></div>
+          <span class="pct mono" id="pct-weekly">--</span>
+          <span class="reset mono" id="reset-weekly">--</span>
+        </div>
+        <footer class="status">
+          <span class="pill" id="plan">--</span>
+          <span class="faint age mono" id="age"></span>
+          <span class="spacer"></span>
+          <span class="pill warn" id="throttle" hidden>throttled</span>
+          <span class="pill" id="source" hidden></span>
+        </footer>
+      </div>
+    </main>
+    <script src="creature.js"></script>
+    <script src="bar.js"></script>
+  </body>
+</html>

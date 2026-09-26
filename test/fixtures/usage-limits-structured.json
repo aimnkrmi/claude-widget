@@ -1,0 +1,29 @@
+{
+  "limits": [
+    {
+      "kind": "session",
+      "percent": 61.5,
+      "resets_at": "2026-09-26T18:05:00.000Z",
+      "severity": "warning",
+      "is_active": true,
+      "scope": "session"
+    },
+    {
+      "kind": "weekly_all",
+      "percent": 91,
+      "resets_at": "2026-10-02T09:00:00.000Z",
+      "severity": "normal",
+      "is_active": true,
+      "scope": "all"
+    },
+    {
+      "kind": "weekly_scoped",
+      "percent": 4,
+      "resets_at": "2026-10-02T09:00:00.000Z",
+      "severity": "normal",
+      "is_active": true,
+      "scope": "model:claude-opus-4"
+    }
+  ],
+  "status": "normal"
+}

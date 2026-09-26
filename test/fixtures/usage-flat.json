@@ -1,0 +1,15 @@
+{
+  "five_hour": {
+    "utilization": 43.5,
+    "resets_at": "2026-09-26T14:32:11.000Z"
+  },
+  "seven_day": {
+    "utilization": 78.25,
+    "resets_at": "2026-10-01T00:00:00.000Z"
+  },
+  "seven_day_opus": {
+    "utilization": 12,
+    "resets_at": "2026-10-01T00:00:00.000Z"
+  },
+  "status": "normal"
+}

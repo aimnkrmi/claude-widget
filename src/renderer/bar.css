@@ -1,0 +1,71 @@
+#bar {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 322px;
+  height: 74px;
+  padding: 8px 11px 8px 8px;
+  cursor: grab;
+}
+
+#bar.dragging {
+  cursor: grabbing;
+}
+
+.critter {
+  flex: 0 0 auto;
+  width: 48px;
+  height: 48px;
+  /* Keep the animation running in a hidden window from burning CPU. */
+  pointer-events: none;
+}
+
+.bars {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 20px 1fr 34px 44px;
+  align-items: center;
+  gap: 7px;
+}
+
+.label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--fg-dim);
+  letter-spacing: 0.02em;
+}
+
+.pct {
+  font-size: 11px;
+  font-weight: 600;
+  text-align: right;
+  color: var(--level);
+}
+
+.reset {
+  font-size: 10px;
+  text-align: right;
+  color: var(--fg-faint);
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 1px;
+}
+
+.age {
+  font-size: 10px;
+}
+
+.spacer {
+  flex: 1;
+}
