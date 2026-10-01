@@ -117,11 +117,6 @@
     sourceBadge.hidden = snapshot.source === "oauth" || snapshot.source === "unknown";
     if (!sourceBadge.hidden) sourceBadge.textContent = snapshot.stale ? "stale" : snapshot.source;
     sourceBadge.className = snapshot.stale ? "pill warn" : "pill";
-
-    bar.title =
-      snapshot.source === "unknown"
-        ? "No usage data yet. Click for details."
-        : `5h ${rows.session.pct.textContent} - 7d ${rows.weekly.pct.textContent}\n${snapshot.lastError ?? "Click for details"}`;
   }
 
   /** Local tick: no IPC, just time-dependent text and the rolled-over state. */

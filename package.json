@@ -1,7 +1,7 @@
 {
   "name": "claude-usage-widget",
   "productName": "Claude Usage Widget",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Unofficial always-on-top Windows widget showing your Claude subscription quota: the 5-hour and 7-day windows with live reset countdowns.",
   "keywords": [
     "claude",
